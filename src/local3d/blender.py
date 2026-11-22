@@ -7,7 +7,7 @@ from .models import Asset
 from .runtime import run_stage
 from .settings import Local3DError, Settings
 
-Action = Literal["export", "optimize", "preview", "demo"]
+Action = Literal["export", "finalize", "optimize", "preview", "demo"]
 MESH_SUFFIXES = {".glb", ".blend"}
 
 

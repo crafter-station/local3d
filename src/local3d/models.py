@@ -30,6 +30,7 @@ class GenerateRequest(BaseModel):
         | None
     ) = None
     image: Path | None = None
+    views: Annotated[list[Path], Field(max_length=3)] = Field(default_factory=list)
     mode: Mode = Mode.FAST
     provider: Provider | None = None
     format: Format = Format.GLB
@@ -42,6 +43,12 @@ class GenerateRequest(BaseModel):
             raise ValueError("Provide exactly one of prompt or image.")
         if self.provider == Provider.DEMO and self.image is not None:
             raise ValueError("The demo provider accepts a primitive name as a prompt.")
+        if self.views and self.image is None:
+            raise ValueError("Extra views require a primary image.")
+        if self.views and self.selected_provider() != Provider.TRELLIS:
+            raise ValueError(
+                "Stable Fast 3D conditions on one image. Use provider trellis2 for extra views."
+            )
         return self
 
     def selected_provider(self) -> Provider:

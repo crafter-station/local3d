@@ -71,7 +71,7 @@ class Geometry:
     def command(
         self,
         settings: Settings,
-        image: Path,
+        images: Sequence[Path],
         output: Path,
         mode: Mode,
         seed: int,
@@ -97,10 +97,10 @@ class Geometry:
                 "generate",
                 self.provider.value,
                 root,
-                image,
                 output,
                 mode.value,
                 str(seed),
+                *images,
             ],
             env,
         )

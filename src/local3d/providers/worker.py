@@ -38,7 +38,62 @@ def install(root: Path, weights: list[str]) -> None:
     rembg.new_session("u2net", providers=["CPUExecutionProvider"])
 
 
-def generate(provider: str, root: Path, image: Path, output: Path, mode: str, seed: str) -> None:
+def clean_reference(image: Path, output: Path) -> Path:
+    """Segment the object and return an RGBA reference with a hard, defringed mask.
+
+    SF3D composites the cutout over gray, so soft rembg edges carry background color into
+    the baked albedo and small stray blobs become floating geometry. Only the main object
+    and parts at least 5% of its area are kept. Interior holes are left intact.
+    """
+    import numpy as np
+    from PIL import Image
+    from scipy import ndimage
+
+    with Image.open(image) as source:
+        rgba = source.convert("RGBA")
+    if np.asarray(rgba)[..., 3].min() == 255:
+        import rembg
+
+        session = rembg.new_session("u2net", providers=["CPUExecutionProvider"])
+        rgba = rembg.remove(rgba.convert("RGB"), session=session, post_process_mask=True)
+        rgba = rgba.convert("RGBA")
+    pixels = np.array(rgba)
+    mask = pixels[..., 3] > 127
+    labels, count = ndimage.label(mask)
+    if count == 0:
+        return image
+    if count > 1:
+        sizes = ndimage.sum(mask, labels, range(1, count + 1))
+        mask = np.isin(labels, 1 + np.flatnonzero(sizes >= 0.05 * sizes.max()))
+    mask = ndimage.binary_erosion(mask, iterations=max(1, round(min(mask.shape) / 512)))
+    if not mask.any():
+        return image
+    pixels[..., 3] = np.where(mask, 255, 0).astype(np.uint8)
+    pixels[~mask, :3] = 0
+    Image.fromarray(pixels, "RGBA").save(output)
+    return output
+
+
+def lossless_textures() -> None:
+    """Make trimesh embed PNG textures. Upstream tags them JPEG, which trimesh saves at
+    quality 75 and leaves block artifacts in both the albedo and the normal map."""
+    import trimesh
+
+    material = trimesh.visual.material.PBRMaterial
+    original = material.__init__
+
+    def init(self, *args, **kwargs):
+        for key in ("baseColorTexture", "normalTexture"):
+            if kwargs.get(key) is not None:
+                kwargs[key].format = None
+        original(self, *args, **kwargs)
+
+    material.__init__ = init
+
+
+def generate(
+    provider: str, root: Path, output: Path, mode: str, seed: str, images: list[Path]
+) -> None:
     import mlx.core as mx
 
     if not mx.metal.is_available():
@@ -54,15 +109,19 @@ def generate(provider: str, root: Path, image: Path, output: Path, mode: str, se
         from PIL import Image
 
         weights = Path(os.environ["LOCAL3D_SF3D_WEIGHTS"])
-        with Image.open(image) as reference:
+        if len(images) != 1:
+            raise ValueError("SF3D conditions on exactly one reference image.")
+        cutout = clean_reference(images[0], output.with_name("reference-cutout.png"))
+        lossless_textures()
+        with Image.open(cutout) as reference:
             model = MLXStableFast3D(weights)
             codes = model.image_to_scene_codes(reference)
         del model
         mx.clear_cache()
         finish_mesh_mlx.WEIGHTS_PATH = weights
-        finish_mesh_mlx.finish_mesh(
-            codes, str(output), bake_resolution=512 if mode == "fast" else 1024
-        )
+        # 512 px was too coarse once the object fills only part of the atlas. 1024 matches
+        # the measured quality profile and baking stays a small share of runtime.
+        finish_mesh_mlx.finish_mesh(codes, str(output), bake_resolution=1024)
     else:
         sys.path.insert(0, str(root / "upstream"))
         script = root / "upstream/generate.py"
@@ -85,7 +144,7 @@ def generate(provider: str, root: Path, image: Path, output: Path, mode: str, se
         sys.argv = [
             str(script),
             "--image",
-            str(image),
+            *(str(path) for path in images),
             "--output",
             str(output),
             "--seed",
@@ -107,7 +166,7 @@ if __name__ == "__main__":
     elif action == "install":
         install(root, args)
     elif action == "generate":
-        image_path, output_path, mode, seed = args
-        generate(provider, root, Path(image_path), Path(output_path), mode, seed)
+        output_path, mode, seed, *image_paths = args
+        generate(provider, root, Path(output_path), mode, seed, [Path(p) for p in image_paths])
     else:
         raise ValueError(f"Unknown action: {action}")

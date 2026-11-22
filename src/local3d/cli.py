@@ -46,6 +46,10 @@ def fail(error: Exception) -> None:
 def generate(
     prompt: Annotated[str | None, typer.Option("--prompt", "-p")] = None,
     image: Annotated[Path | None, typer.Option("--image", "-i")] = None,
+    view: Annotated[
+        list[Path] | None,
+        typer.Option(help="Extra reference angle of the same object. TRELLIS.2 only, up to 3."),
+    ] = None,
     mode: Mode = Mode.FAST,
     provider: Provider | None = None,
     format: Format = Format.GLB,
@@ -57,6 +61,7 @@ def generate(
         request = GenerateRequest(
             prompt=prompt,
             image=image,
+            views=view or [],
             mode=mode,
             provider=provider,
             format=format,

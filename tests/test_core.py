@@ -92,3 +92,53 @@ def test_cli_reports_compact_json_on_error():
     result = CliRunner().invoke(app, ["generate"])
     assert result.exit_code == 1
     assert "exactly one" in json.loads(result.stdout)["error"]
+
+
+def test_extra_views_need_trellis():
+    with pytest.raises(ValidationError, match="trellis2"):
+        GenerateRequest(image=Path("a.png"), views=[Path("b.png")])
+    with pytest.raises(ValidationError, match="primary image"):
+        GenerateRequest(prompt="mug", provider="trellis2", views=[Path("b.png")])
+    with pytest.raises(ValidationError):
+        GenerateRequest(image=Path("a.png"), mode="quality", views=[Path("v.png")] * 4)
+    request = GenerateRequest(image=Path("a.png"), mode="quality", views=[Path("b.png")])
+    assert request.selected_provider() == Provider.TRELLIS
+
+
+def test_geometry_command_passes_every_reference(tmp_path):
+    from local3d.models import Mode
+    from local3d.providers.geometry import GEOMETRY
+
+    images = [tmp_path / "reference.png", tmp_path / "view-1.png"]
+    command, _env = GEOMETRY[Provider.TRELLIS].command(
+        Settings(tmp_path, None), images, tmp_path / "raw.glb", Mode.QUALITY, 7
+    )
+    assert list(command[2:]) == [
+        "generate",
+        "trellis2",
+        GEOMETRY[Provider.TRELLIS].root(Settings(tmp_path, None)),
+        tmp_path / "raw.glb",
+        "quality",
+        "7",
+        *images,
+    ]
+
+
+def test_reference_cleanup_drops_specks_and_soft_edges(tmp_path):
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("scipy")
+    from PIL import Image
+
+    from local3d.providers.worker import clean_reference
+
+    pixels = np.zeros((128, 128, 4), dtype=np.uint8)
+    pixels[20:100, 20:100] = (200, 40, 40, 255)
+    pixels[18:20, 20:100] = (255, 255, 255, 90)  # soft halo
+    pixels[110:112, 110:112] = (0, 0, 255, 255)  # stray speck
+    source = tmp_path / "source.png"
+    Image.fromarray(pixels, "RGBA").save(source)
+    result = clean_reference(source, tmp_path / "cutout.png")
+    alpha = np.asarray(Image.open(result))[..., 3]
+    assert set(np.unique(alpha)) == {0, 255}
+    assert alpha[111, 111] == 0 and alpha[19, 50] == 0
+    assert alpha[60, 60] == 255

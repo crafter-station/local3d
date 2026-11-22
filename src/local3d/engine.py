@@ -36,7 +36,12 @@ class Engine:
 
     def enqueue(self, request: GenerateRequest) -> Job:
         if request.image is not None:
-            request = request.model_copy(update={"image": request.image.expanduser().resolve()})
+            request = request.model_copy(
+                update={
+                    "image": request.image.expanduser().resolve(),
+                    "views": [view.expanduser().resolve() for view in request.views],
+                }
+            )
         return self.jobs.create(request)
 
     def run(self, job_id: str, *, wait: bool = True) -> Job:
@@ -117,8 +122,12 @@ class Engine:
         stages = {}
         progress("reference")
         reference = directory / "reference.png"
+        references = [reference]
         if request.image is not None:
             save_reference(request.image, reference)
+            for index, view in enumerate(request.views, start=1):
+                references.append(directory / f"view-{index}.png")
+                save_reference(view, references[-1])
         elif use_mflux:
             stages["mflux"] = mflux.run_image(request, reference, log=log, lock_fd=lock_fd)
         elif image_profile is not None:
@@ -139,7 +148,7 @@ class Engine:
             )
         progress("geometry")
         raw = directory / "raw.glb"
-        command, env = geometry.command(self.settings, reference, raw, request.mode, request.seed)
+        command, env = geometry.command(self.settings, references, raw, request.mode, request.seed)
         stages["geometry"] = run_stage(
             "Generate geometry",
             command,
@@ -155,7 +164,7 @@ class Engine:
             if stream.read(4) != b"glTF":
                 raise Local3DError("Geometry provider did not return a valid GLB header.")
         progress("blender")
-        asset = process(self.settings, "export", raw, output, log, lock_fd)
+        asset = process(self.settings, "finalize", raw, output, log, lock_fd)
         if request.format == Format.BLEND:
             raw.replace(directory / "preview.glb")
         else:

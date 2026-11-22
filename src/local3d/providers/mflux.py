@@ -51,10 +51,15 @@ class MFlux:
             "HF_HOME": str(self.root / "hf"),
             "HF_HUB_DISABLE_TELEMETRY": "1",
         }
+        # Single-image 3D models read every pixel as geometry or albedo. Cast shadows, floor
+        # planes, reflections and cropped edges come back as bumps, holes or baked stains.
         prompt = (
-            f"{request.prompt}. Product render of a single centered object, "
-            "three-quarter view, clear silhouette, plain white background."
+            f"{request.prompt}. A single complete object, centered and fully in frame with "
+            "empty margin around it, three-quarter front view at eye level, "
+            "soft even studio lighting, no cast shadow, no floor, no reflections, no text, "
+            "isolated on a plain neutral gray background, clean product render."
         )
+        size = "768" if request.mode == "fast" else "1024"
         metrics = run_stage(
             "Generate reference with MFLUX",
             [
@@ -70,9 +75,9 @@ class MFlux:
                 "--seed",
                 str(request.seed),
                 "--width",
-                "512",
+                size,
                 "--height",
-                "512",
+                size,
                 "--output",
                 output,
                 "--no-exif",

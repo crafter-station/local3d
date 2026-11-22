@@ -14,6 +14,8 @@ def test_mflux_runs_with_pinned_local_model_and_offline_environment(tmp_path, mo
         args = list(map(str, args))
         assert args[args.index("--model") + 1] == str(provider.weights)
         assert args[args.index("--seed") + 1] == "123"
+        assert args[args.index("--width") + 1] == args[args.index("--height") + 1] == "768"
+        assert "no cast shadow" in args[args.index("--prompt") + 1]
         assert env["HF_HUB_OFFLINE"] == env["TRANSFORMERS_OFFLINE"] == "1"
         Image.new("RGB", (32, 32)).save(Path(args[args.index("--output") + 1]), "PNG")
         return StageMetrics(seconds=1.0)

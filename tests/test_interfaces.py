@@ -129,3 +129,46 @@ def test_headless_blender_generates_optimizes_exports_and_renders(tmp_path):
     assert blend.bytes > 0
     output = engine.process("preview", Path(blend.path), tmp_path / "preview.png", preview_size=128)
     assert output.path.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+@pytest.mark.blender
+def test_finalize_removes_small_floating_islands(tmp_path):
+    blender = find_blender()
+    if blender is None:
+        pytest.skip("Blender is not installed")
+    from local3d.blender import process
+
+    settings = Settings(tmp_path, blender)
+    source = tmp_path / "source.glb"
+    script = tmp_path / "make.py"
+    script.write_text(
+        "import bpy\n"
+        "bpy.ops.wm.read_factory_settings(use_empty=True)\n"
+        "bpy.ops.mesh.primitive_uv_sphere_add(segments=64, ring_count=32)\n"
+        "bpy.ops.mesh.primitive_plane_add(size=0.05, location=(3, 0, 0))\n"
+        "bpy.ops.object.select_all(action='SELECT')\n"
+        "bpy.context.view_layer.objects.active = bpy.context.scene.objects[0]\n"
+        "bpy.ops.object.join()\n"
+        f"bpy.ops.export_scene.gltf(filepath={str(source)!r}, export_format='GLB')\n"
+    )
+    import subprocess
+
+    subprocess.run(
+        [
+            blender,
+            "--background",
+            "--factory-startup",
+            "--python-exit-code",
+            "1",
+            "--python",
+            script,
+        ],
+        check=True,
+        capture_output=True,
+    )
+    with engine_lock(settings) as fd:
+        raw = process(settings, "export", source, tmp_path / "raw.glb", tmp_path / "a.log", fd)
+        clean = process(
+            settings, "finalize", source, tmp_path / "clean.glb", tmp_path / "b.log", fd
+        )
+    assert clean.triangles == raw.triangles - 2

@@ -52,6 +52,64 @@ def optimize(objects, ratio):
         obj.select_set(False)
 
 
+def remove_floaters(objects, share=0.005):
+    """Delete loose surface pieces smaller than `share` of the object's faces.
+
+    Single-image reconstruction often leaves specks and thin shards around the main
+    surface. Pieces are found by vertex position, since GLB vertices are split along UV
+    seams and index connectivity would mistake texture charts for separate parts.
+    """
+    import bmesh
+
+    for obj in objects:
+        mesh = bmesh.new()
+        mesh.from_mesh(obj.data)
+        if not mesh.faces:
+            mesh.free()
+            continue
+        lower = Vector(tuple(min(v.co[i] for v in mesh.verts) for i in range(3)))
+        upper = Vector(tuple(max(v.co[i] for v in mesh.verts) for i in range(3)))
+        step = max((upper - lower).length, 1e-9) * 1e-6
+        welded = {}
+        parent = []
+
+        def find(index):
+            while parent[index] != index:
+                parent[index] = parent[parent[index]]
+                index = parent[index]
+            return index
+
+        point = {}
+        for vert in mesh.verts:
+            key = tuple(round(value / step) for value in vert.co)
+            if key not in welded:
+                welded[key] = len(parent)
+                parent.append(len(parent))
+            point[vert] = welded[key]
+        for face in mesh.faces:
+            first = find(point[face.verts[0]])
+            for vert in face.verts[1:]:
+                other = find(point[vert])
+                if other != first:
+                    parent[other] = first
+        sizes = {}
+        owner = {}
+        for face in mesh.faces:
+            root = find(point[face.verts[0]])
+            owner[face] = root
+            sizes[root] = sizes.get(root, 0) + 1
+        limit = share * len(mesh.faces)
+        doomed = [face for face, root in owner.items() if sizes[root] < limit]
+        if doomed and len(doomed) < len(mesh.faces):
+            bmesh.ops.delete(mesh, geom=doomed, context="FACES")
+            loose = [vert for vert in mesh.verts if not vert.link_faces]
+            bmesh.ops.delete(mesh, geom=loose, context="VERTS")
+            mesh.to_mesh(obj.data)
+            obj.data.update()
+            print(f"Removed {len(doomed)} floater faces from {obj.name}", flush=True)
+        mesh.free()
+
+
 def statistics():
     objects = meshes()
     if not objects:
@@ -117,6 +175,8 @@ def main():
         load(source)
     if action == "optimize":
         optimize(meshes(), float(ratio))
+    elif action == "finalize":
+        remove_floaters(meshes())
     stats = statistics()
     if action == "preview":
         render(meshes(), output, int(size))

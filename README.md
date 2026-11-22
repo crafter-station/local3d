@@ -31,7 +31,7 @@ uv run local3d models install sf3d
 uv run local3d generate --image /absolute/path/to/reference.png
 ```
 
-Use a single, clearly framed object. PNG, JPEG and WebP inputs up to 25 MiB and 4096 × 4096 are accepted. Direct image input skips Draw Things. The job directory keeps the normalized reference, output and local log. Models, isolated Python environments, jobs and SQLite default to `~/Library/Application Support/Local3D`. Use `LOCAL3D_HOME` to choose another directory. Local3D surfaces provider failures in job metadata and returns a nonzero CLI exit status.
+Use a single, clearly framed object. Results depend most on the reference. Show the whole object with margin, at eye level or a slight three-quarter angle, under soft even light, without a cast shadow, floor, reflections, or other objects. For Stable Fast 3D, Local3D segments the object, hardens its mask so background color does not bleed into the texture, embeds lossless PNG textures, and deletes loose fragments under 0.5% of the faces. The cutout is kept as `reference-cutout.png` in the job directory. PNG, JPEG and WebP inputs up to 25 MiB and 4096 × 4096 are accepted. Direct image input skips Draw Things. The job directory keeps the normalized reference, output and local log. Models, isolated Python environments, jobs and SQLite default to `~/Library/Application Support/Local3D`. Use `LOCAL3D_HOME` to choose another directory. Local3D surfaces provider failures in job metadata and returns a nonzero CLI exit status.
 
 ## Providers and hardware
 
@@ -39,9 +39,9 @@ Use a single, clearly framed object. PNG, JPEG and WebP inputs up to 25 MiB and 
 | --- | --- | --- | --- | --- |
 | Blender | Import, optimize, preview and export | CPU preview on demand | Separate installed app | Headless GLB and BLEND workflow tested on Mac |
 | Blender demo | Procedural pipeline smoke test | Cube, icosphere or torus | No weights | Tested end to end locally |
-| Stable Fast 3D MLX | Single-image textured mesh | Fast default, 512 px bake. Explicit quality uses 1024 px | 4.02 GB checkpoint. Allow 8 GiB for runtime, caches and setup | Validated on M5 with official weights in fast and quality |
+| Stable Fast 3D MLX | Single-image textured mesh | Fast default, 1024 px lossless bake. Conditions on exactly one image | 4.02 GB checkpoint. Allow 8 GiB for runtime, caches and setup | Validated on M5 with official weights in fast and quality |
 | TRELLIS.2 MLX | Single-image PBR mesh | Fast 512 without cascade, quality 768 cascade with a 12K token cap | Full upstream checkpoint repositories total 20.75 GB. Local3D fetches only the necessary files. Allow 24 GiB | Experimental. Metal and imports pass. DINOv3 access required |
-| MFLUX with FLUX.2 Klein 4B | Local prompt-to-image stage | Four steps at 512 px | About 4.61 GB for weights | Local Apple Silicon |
+| MFLUX with FLUX.2 Klein 4B | Local prompt-to-image stage | Four steps at 768 px fast or 1024 px quality, gray studio background | About 4.61 GB for weights | Local Apple Silicon |
 | Draw Things with FLUX | Optional prompt-to-image stage | 512 px, 4 steps, tuned for FLUX.1 schnell | Managed by Draw Things. Size depends on model and quantization | Experimental |
 
 | Hardware | Expected support |
@@ -65,6 +65,12 @@ Install TRELLIS.2 after obtaining separate access to [Meta DINOv3](https://huggi
 ```sh
 uv run local3d models install trellis2
 uv run local3d generate --image /absolute/path/to/reference.png --mode quality --allow-experimental
+```
+
+TRELLIS.2 also accepts up to three extra photos of the same object from other angles. The port concatenates the conditioning tokens of every view. The model was trained on single images, so treat this as an experiment and compare it against the primary image alone. Stable Fast 3D rejects extra views.
+
+```sh
+uv run local3d generate --image front.png --view side.png --view back.png --mode quality --allow-experimental
 ```
 
 ### Prompt input with MFLUX

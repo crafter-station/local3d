@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" width="1200" height="620" role="img" aria-labelledby="title desc">
+  <title id="title">Local3D architecture</title>
+  <desc id="desc">The CLI, loopback REST API and stdio MCP server share one engine and SQLite database. A cross-process lock serializes optional Draw Things reference generation, isolated MLX geometry generation and headless Blender export. The engine returns JSON with local paths.</desc>
+  <defs>
+    <linearGradient id="background" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#111D31"/>
+      <stop offset="1" stop-color="#0A101B"/>
+    </linearGradient>
+    <linearGradient id="engine" x2="1" y2="0" gradientUnits="objectBoundingBox">
+      <stop stop-color="#263E61"/>
+      <stop offset="1" stop-color="#192B46"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0 7 3.5 0 7 1.8 3.5Z" fill="#8AA7C7"/>
+    </marker>
+    <marker id="mint-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0 7 3.5 0 7 1.8 3.5Z" fill="#72E1C1"/>
+    </marker>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif }
+      .hero { font-weight: 700; font-size: 47px; fill: #F2F7FF; letter-spacing: -1.3px }
+      .lede { font-size: 20px; fill: #B4C5DD }
+      .head { font-weight: 650; font-size: 23px; fill: #F2F7FF }
+      .copy { font-size: 16px; fill: #BBCDE5 }
+      .label { font-weight: 700; font-size: 13px; fill: #8FE6CF; letter-spacing: 1.5px }
+      .node { fill: #19273C; stroke: #3C5472; stroke-width: 1.2 }
+      .line { fill: none; stroke: #8AA7C7; stroke-width: 2; marker-end: url(#arrow) }
+      .merge { fill: none; stroke: #8AA7C7; stroke-width: 2 }
+      .accent { fill: none; stroke: #72E1C1; stroke-width: 1.8 }
+      .icon { fill: none; stroke: #A4BFDB; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round }
+    </style>
+  </defs>
+
+  <rect width="1200" height="620" rx="28" fill="url(#background)"/>
+  <path d="M41 115H1159" stroke="#324662"/>
+  <text class="hero" x="43" y="67">Local3D</text>
+  <text class="lede" x="45" y="98">Local inference and export for AI agents</text>
+
+  <g>
+    <rect class="node" x="43" y="139" width="343" height="73" rx="13"/>
+    <path class="icon" d="M67 170l6 6-6 6m11 0h8"/>
+    <text class="head" x="102" y="171">CLI</text>
+    <text class="copy" x="103" y="194">Typer · direct execution</text>
+    <rect class="node" x="428" y="139" width="344" height="73" rx="13"/>
+    <path class="icon" d="m455 169-6 7 6 7m12-14 6 7-6 7m-4-15-5 16"/>
+    <text class="head" x="489" y="171">REST API</text>
+    <text class="copy" x="490" y="194">FastAPI · loopback HTTP</text>
+    <rect class="node" x="814" y="139" width="343" height="73" rx="13"/>
+    <path class="icon" d="M838 170h18m-5-5 5 5-5 5m5 6h-18m5-5-5 5 5 5"/>
+    <text class="head" x="876" y="171">MCP</text>
+    <text class="copy" x="877" y="194">FastMCP · optional stdio</text>
+  </g>
+  <path class="merge" d="M214 212v17h773v-17m-387 0v17"/>
+  <path class="line" d="M600 229v17"/>
+
+  <rect x="43" y="250" width="1114" height="67" rx="13" fill="url(#engine)" stroke="#607A9D"/>
+  <text class="head" x="67" y="280">Local3D engine</text>
+  <text class="copy" x="67" y="303">Validates requests and runs the shared job queue</text>
+  <rect x="936" y="263" width="204" height="40" rx="9" fill="#16253D" stroke="#607A9D"/>
+  <path class="icon" d="M953 275c0-4 18-4 18 0v15c0 4-18 4-18 0zm0 0c0 4 18 4 18 0m-18 7c0 4 18 4 18 0"/>
+  <text class="copy" x="984" y="288">SQLite · jobs</text>
+  <path class="line" d="M600 317v23"/>
+
+  <rect x="43" y="345" width="1114" height="227" rx="16" fill="#101B2C" stroke="#416477" stroke-width="1.5"/>
+  <text class="label" x="65" y="374">SERIALIZED PIPELINE</text>
+  <text class="copy" x="1135" y="374" text-anchor="end">Shared process lock</text>
+
+  <rect class="node" x="65" y="398" width="239" height="117" rx="12"/>
+  <text class="label" x="81" y="422">PROMPT ONLY</text>
+  <text class="head" x="81" y="453">Draw Things</text>
+  <text class="copy" x="81" y="478">FLUX reference image</text>
+  <text class="copy" x="81" y="500">Release server</text>
+  <path class="line" d="M309 460h23"/>
+
+  <rect class="node" x="341" y="398" width="240" height="117" rx="12"/>
+  <text class="label" x="357" y="422">APPLE SILICON</text>
+  <text class="head" x="357" y="453">MLX geometry</text>
+  <text class="copy" x="357" y="478">Mesh and textures</text>
+  <text class="copy" x="357" y="500">Isolated worker exits</text>
+  <path class="line" d="M586 460h23"/>
+
+  <rect class="node" x="618" y="398" width="240" height="117" rx="12"/>
+  <text class="label" x="634" y="422">HEADLESS</text>
+  <text class="head" x="634" y="453">Blender</text>
+  <text class="copy" x="634" y="478">Validate and process mesh</text>
+  <text class="copy" x="634" y="500">Export GLB or BLEND</text>
+  <path class="line" d="M863 460h23"/>
+
+  <rect x="895" y="398" width="240" height="117" rx="12" fill="#183734" stroke="#6CCFB8" stroke-width="1.3"/>
+  <text class="label" x="911" y="422">RETURN TO AGENT</text>
+  <text class="head" x="911" y="453">Compact JSON</text>
+  <text class="copy" x="911" y="478">Local paths and metrics</text>
+  <text class="copy" x="911" y="500">Artifacts stay on disk</text>
+
+  <text class="copy" x="65" y="552">Reference image</text>
+  <path class="accent" d="M197 546h264v-22" marker-end="url(#mint-arrow)"/>
+  <text class="copy" x="544" y="552">Procedural demo</text>
+  <path class="accent" d="M671 546h67v-22" marker-end="url(#mint-arrow)"/>
+
+  <text class="copy" x="43" y="600">Mac · Python + uv · MLX + Metal · Blender</text>
+</svg>

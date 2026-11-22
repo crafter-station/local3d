@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" width="1200" height="620" role="img" aria-labelledby="title desc">
   <title id="title">Local3D architecture</title>
-  <desc id="desc">The CLI, loopback REST API and stdio MCP server share one engine and SQLite database. A cross-process lock serializes optional Draw Things reference generation, isolated MLX geometry generation and headless Blender export. The engine returns JSON with local paths.</desc>
+  <desc id="desc">The CLI, loopback REST API and stdio MCP server share one engine and SQLite database. A cross-process lock serializes optional FLUX reference generation, isolated MLX geometry generation and headless Blender export. The engine returns JSON with local paths.</desc>
   <defs>
     <linearGradient id="background" x2="1" y2="1" gradientUnits="objectBoundingBox">
       <stop stop-color="#111D31"/>
@@ -44,7 +44,7 @@
     <rect class="node" x="428" y="139" width="344" height="73" rx="13"/>
     <path class="icon" d="m455 169-6 7 6 7m12-14 6 7-6 7m-4-15-5 16"/>
     <text class="head" x="489" y="171">REST API</text>
-    <text class="copy" x="490" y="194">FastAPI · loopback HTTP</text>
+    <text class="copy" x="490" y="194">Dashboard · loopback HTTP</text>
     <rect class="node" x="814" y="139" width="343" height="73" rx="13"/>
     <path class="icon" d="M838 170h18m-5-5 5 5-5 5m5 6h-18m5-5-5 5 5 5"/>
     <text class="head" x="876" y="171">MCP</text>
@@ -67,9 +67,9 @@
 
   <rect class="node" x="65" y="398" width="239" height="117" rx="12"/>
   <text class="label" x="81" y="422">PROMPT ONLY</text>
-  <text class="head" x="81" y="453">Draw Things</text>
-  <text class="copy" x="81" y="478">FLUX reference image</text>
-  <text class="copy" x="81" y="500">Release server</text>
+  <text class="head" x="81" y="453">FLUX reference</text>
+  <text class="copy" x="81" y="478">MFLUX image generation</text>
+  <text class="copy" x="81" y="500">Image worker exits</text>
   <path class="line" d="M309 460h23"/>
 
   <rect class="node" x="341" y="398" width="240" height="117" rx="12"/>

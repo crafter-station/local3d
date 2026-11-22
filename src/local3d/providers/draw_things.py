@@ -35,8 +35,8 @@ class DrawThings:
         self.model = os.environ.get("LOCAL3D_DRAW_THINGS_MODEL")
         self.sampler = os.environ.get("LOCAL3D_DRAW_THINGS_SAMPLER", "Euler A Trailing")
 
-    def options(self) -> dict:
-        with httpx.Client(base_url=self.url, trust_env=False, timeout=2) as client:
+    def options(self, timeout: float = 2) -> dict:
+        with httpx.Client(base_url=self.url, trust_env=False, timeout=timeout) as client:
             return self._request(client, "GET", "/sdapi/v1/options")
 
     @staticmethod

@@ -25,6 +25,11 @@ def test_api_persists_jobs_and_checks_loopback(tmp_path):
             ) as client,
         ):
             assert (await client.get("/health")).json() == {"status": "ok"}
+            page = await client.get("/")
+            assert page.status_code == 200
+            assert "Generation monitor" in page.text
+            assert "connect-src 'self' blob:" in page.headers["content-security-policy"]
+            assert (await client.get("/dashboard-assets/dashboard.js")).status_code == 200
             other_host = await client.get("/health", headers={"Host": "other.example"})
             assert other_host.status_code == 403
             other_origin = await client.post(
@@ -44,6 +49,13 @@ def test_api_persists_jobs_and_checks_loopback(tmp_path):
                     await asyncio.sleep(0.1)
             assert "Blender" in job["error"]
             assert (await client.get("/v1/jobs")).json()[0] == job
+            dashboard = (await client.get("/v1/dashboard")).json()
+            assert dashboard["counts"]["failed"] == 1
+            assert dashboard["jobs"][0]["title"] == "cube"
+            assert dashboard["jobs"][0]["phase"] == "preparing"
+            assert dashboard["jobs"][0]["phase_started_at"]
+            assert dashboard["ports"][0]["status"] == "online"
+            assert (await client.get(f"/v1/jobs/{job_id}/artifact")).status_code == 404
             return job_id
 
     job_id = asyncio.run(check())
@@ -100,6 +112,16 @@ def test_headless_blender_generates_optimizes_exports_and_renders(tmp_path):
     job = engine.generate(GenerateRequest(provider="demo", prompt="torus"))
     assert job.status == "succeeded", job.error
     assert job.asset.path.read_bytes()[:4] == b"glTF"
+
+    async def check_download():
+        app = create_app(engine.settings)
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://127.0.0.1") as client:
+            result = await client.get(f"/v1/jobs/{job.id}/artifact")
+            assert result.content[:4] == b"glTF"
+            assert result.headers["content-disposition"].startswith("attachment;")
+
+    asyncio.run(check_download())
     assert job.asset.triangles > 100
     compact = engine.process("optimize", job.asset.path, tmp_path / "compact.glb", ratio=0.4)
     assert 0 < compact.triangles < job.asset.triangles

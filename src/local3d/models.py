@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Literal, Self
@@ -73,3 +74,12 @@ class Job(BaseModel):
     asset: Asset | None = None
     error: str | None = None
     log: Path | None = None
+
+
+Phase = Literal["preparing", "reference", "geometry", "blender"]
+
+
+class DashboardJob(Job):
+    title: str
+    phase: Phase | None = None
+    phase_started_at: datetime | None = None

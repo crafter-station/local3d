@@ -13,8 +13,11 @@ from .engine import Engine
 from .inspection import doctor as diagnose
 from .inspection import model_inventory
 from .models import Format, GenerateRequest, Mode, Provider
+from .providers.draw_things_cli import DEFAULT_MODEL, DrawThingsCLI
 from .providers.geometry import GEOMETRY, install_geometry
+from .providers.mflux import MFlux
 from .settings import Local3DError, Settings
+from .web_assets import install_viewer
 
 app = typer.Typer(no_args_is_help=True, help="Local 3D assets for agents.")
 models_app = typer.Typer(no_args_is_help=True)
@@ -82,24 +85,26 @@ def models_list() -> None:
 
 
 @models_app.command("install")
-def models_install(provider: str) -> None:
-    """Install a pinned MLX provider and its official weights."""
+def models_install(
+    provider: str,
+    image_model: Annotated[
+        str, typer.Option(help="FLUX model name or file ID for Draw Things.")
+    ] = DEFAULT_MODEL,
+    image_models_dir: Annotated[
+        Path | None, typer.Option(help="Optional Draw Things weights directory.")
+    ] = None,
+) -> None:
+    """Install a pinned provider and verify its official runtime."""
     settings = Settings.load()
-    if provider == "draw-things":
-        json_output(
-            {
-                "provider": provider,
-                "status": "external_setup_required",
-                "message": "Install a FLUX checkpoint inside Draw Things and enable its local HTTP API.",
-                "docs": "https://docs.drawthings.ai/",
-            }
-        )
-        raise typer.Exit(1)
-    if provider not in GEOMETRY:
-        fail(Local3DError("Choose sf3d or trellis2. The Blender demo needs no model."))
-        return
     try:
-        path = install_geometry(settings, Provider(provider))
+        if provider == "mflux":
+            path = MFlux(settings).install()
+        elif provider == "draw-things":
+            path = DrawThingsCLI(settings).install(image_model, image_models_dir)
+        elif provider in GEOMETRY:
+            path = install_geometry(settings, Provider(provider))
+        else:
+            raise Local3DError("Choose sf3d, trellis2, mflux or draw-things.")
     except Local3DError as exc:
         fail(exc)
         return
@@ -174,12 +179,19 @@ def mcp() -> None:
 @app.command()
 def setup(
     launchd: bool = typer.Option(False, help="Write a user LaunchAgent plist."),
+    viewer: bool = typer.Option(False, help="Install the optional offline GLB viewer."),
     port: int = typer.Option(8765, min=1024, max=65535),
 ) -> None:
     """Initialize local state and optionally prepare a launchd service."""
     settings = Settings.load()
     Engine(settings)
     response = {"home": str(settings.home)}
+    if viewer:
+        try:
+            response["viewer"] = str(install_viewer(settings))
+        except (Local3DError, OSError) as exc:
+            fail(exc)
+            return
     if launchd:
         executable = shutil.which("local3d")
         if sys.platform != "darwin" or not executable:

@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
 
@@ -5,9 +6,11 @@ from PIL import Image, ImageOps
 
 from .blender import Action, process
 from .jobs import JobStore
-from .models import Asset, GenerateRequest, Job, Provider
+from .models import Asset, Format, GenerateRequest, Job, Phase, Provider
 from .providers.draw_things import DrawThings
+from .providers.draw_things_cli import DrawThingsCLI
 from .providers.geometry import GEOMETRY
+from .providers.mflux import MFlux
 from .runtime import engine_lock, run_stage
 from .settings import Local3DError, Settings
 
@@ -47,7 +50,13 @@ class Engine:
             if request is not None:
                 try:
                     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-                    asset = self._generate(request, directory, log, lock_fd)
+                    asset = self._generate(
+                        request,
+                        directory,
+                        log,
+                        lock_fd,
+                        lambda phase: self.jobs.set_phase(job_id, phase),
+                    )
                 except Exception as exc:
                     if isinstance(exc, Local3DError):
                         message = str(exc)
@@ -72,7 +81,12 @@ class Engine:
         return self.run(self.enqueue(request).id)
 
     def _generate(
-        self, request: GenerateRequest, directory: Path, log: Path, lock_fd: int
+        self,
+        request: GenerateRequest,
+        directory: Path,
+        log: Path,
+        lock_fd: int,
+        progress: Callable[[Phase], None],
     ) -> Asset:
         provider = request.selected_provider()
         output = directory / f"asset.{request.format.value}"
@@ -82,19 +96,39 @@ class Engine:
         if provider == Provider.DEMO:
             if request.prompt not in {"cube", "icosphere", "torus"}:
                 raise Local3DError("Choose cube, icosphere or torus for the procedural demo.")
+            progress("blender")
             return process(self.settings, "demo", request.prompt, output, log, lock_fd)
 
-        if (
-            provider == Provider.TRELLIS or request.image is None
-        ) and not request.allow_experimental:
-            raise Local3DError("TRELLIS.2 and Draw Things require explicit experimental opt-in.")
+        if provider == Provider.TRELLIS and not request.allow_experimental:
+            raise Local3DError("TRELLIS.2 requires explicit experimental opt-in.")
+        mflux = MFlux(self.settings)
+        use_mflux = request.prompt is not None and mflux.ready()
+        draw_cli = DrawThingsCLI(self.settings)
+        image_profile = (
+            draw_cli.profile()
+            if request.prompt is not None and request.allow_experimental
+            else None
+        )
+        if request.prompt is not None and not use_mflux and not request.allow_experimental:
+            raise Local3DError("Run local3d models install mflux for local prompt generation.")
         geometry = GEOMETRY[provider]
         if not geometry.ready(self.settings):
             raise Local3DError(f"Model is missing. Run local3d models install {provider.value}.")
         stages = {}
+        progress("reference")
         reference = directory / "reference.png"
         if request.image is not None:
             save_reference(request.image, reference)
+        elif use_mflux:
+            stages["mflux"] = mflux.run_image(request, reference, log=log, lock_fd=lock_fd)
+        elif image_profile is not None:
+            stages["draw_things"] = draw_cli.run_image(
+                request,
+                reference,
+                image_profile,
+                log=log,
+                lock_fd=lock_fd,
+            )
         else:
             stages["draw_things"] = DrawThings().generate(
                 request,
@@ -103,6 +137,7 @@ class Engine:
                 lock_fd=lock_fd,
                 timeout=self.settings.timeout,
             )
+        progress("geometry")
         raw = directory / "raw.glb"
         command, env = geometry.command(self.settings, reference, raw, request.mode, request.seed)
         stages["geometry"] = run_stage(
@@ -119,8 +154,12 @@ class Engine:
         with raw.open("rb") as stream:
             if stream.read(4) != b"glTF":
                 raise Local3DError("Geometry provider did not return a valid GLB header.")
+        progress("blender")
         asset = process(self.settings, "export", raw, output, log, lock_fd)
-        raw.unlink()
+        if request.format == Format.BLEND:
+            raw.replace(directory / "preview.glb")
+        else:
+            raw.unlink()
         return asset.model_copy(update={"stages": stages | asset.stages})
 
     def process(

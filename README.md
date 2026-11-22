@@ -2,7 +2,7 @@
 
 Local-first AI-powered 3D asset generation for coding agents. Optimized for Apple Silicon and compatible with Claude Code, Codex, and MCP-enabled agents.
 
-Local3D turns a reference image into a textured mesh through a local provider and exports GLB or BLEND with headless Blender. Prompt-only generation can use an experimental Draw Things adapter. The CLI, REST API, and optional MCP server share a SQLite job store and return compact JSON with local paths.
+Local3D turns a reference image into a textured mesh through a local provider and exports GLB or BLEND with headless Blender. Prompt-only generation runs FLUX.2 locally through MFLUX when installed. The CLI, REST API, and optional MCP server share a SQLite job store and return compact JSON with local paths.
 
 ![Local3D architecture](docs/assets/architecture.svg)
 
@@ -41,6 +41,7 @@ Use a single, clearly framed object. PNG, JPEG and WebP inputs up to 25 MiB and 
 | Blender demo | Procedural pipeline smoke test | Cube, icosphere or torus | No weights | Tested end to end locally |
 | Stable Fast 3D MLX | Single-image textured mesh | Fast default, 512 px bake. Explicit quality uses 1024 px | 4.02 GB checkpoint. Allow 8 GiB for runtime, caches and setup | Validated on M5 with official weights in fast and quality |
 | TRELLIS.2 MLX | Single-image PBR mesh | Fast 512 without cascade, quality 768 cascade with a 12K token cap | Full upstream checkpoint repositories total 20.75 GB. Local3D fetches only the necessary files. Allow 24 GiB | Experimental. Metal and imports pass. DINOv3 access required |
+| MFLUX with FLUX.2 Klein 4B | Local prompt-to-image stage | Four steps at 512 px | About 4.61 GB for weights | Local Apple Silicon |
 | Draw Things with FLUX | Optional prompt-to-image stage | 512 px, 4 steps, tuned for FLUX.1 schnell | Managed by Draw Things. Size depends on model and quantization | Experimental |
 
 | Hardware | Expected support |
@@ -66,7 +67,18 @@ uv run local3d models install trellis2
 uv run local3d generate --image /absolute/path/to/reference.png --mode quality --allow-experimental
 ```
 
-### Prompt input with Draw Things
+### Prompt input with MFLUX
+
+Install the pinned [MLX Community FLUX.2 Klein 4B checkpoint](https://huggingface.co/mlx-community/flux2-klein-4b-4bit) once. Local3D generates the reference image, releases the image worker, and hands the reference to Stable Fast 3D and Blender.
+
+~~~sh
+uv run local3d models install mflux
+uv run local3d generate --prompt "A matte red ceramic mug with a rounded handle"
+~~~
+
+### Experimental Draw Things adapters
+
+Use the following instructions for HTTP. An experimental standalone adapter is also available through models install draw-things. On the tested Mac its configured preset produced noise, so MFLUX is the default text provider when available.
 
 Install a FLUX.1 schnell checkpoint in Draw Things, disable Server Offload, and start its HTTP API bound to `127.0.0.1`. Check the model ID and API port in the app. The adapter uses `GET /sdapi/v1/options` and `POST /sdapi/v1/txt2img`. The upstream HTTP API exposes no model-unload route. [Draw Things server source](https://github.com/drawthingsai/draw-things-community/blob/main/Libraries/HTTPAPIServer/Sources/HTTPAPIServer.swift)
 
@@ -92,7 +104,7 @@ The Local3D lock holds through reference generation, release, 3D inference and B
 | `local3d optimize INPUT -o OUTPUT --ratio 0.5` | Decimate a static mesh into a new GLB or BLEND |
 | `local3d preview INPUT -o preview.png` | Render a local PNG on request |
 | `local3d export INPUT -o OUTPUT` | Convert between GLB and BLEND |
-| `local3d serve` / `local3d mcp` | Loopback REST or optional stdio MCP |
+| `local3d serve` / `local3d mcp` | Local dashboard and REST, or optional stdio MCP |
 | `local3d setup` | Initialize state and optionally prepare a macOS LaunchAgent |
 
 ## Agents
@@ -117,7 +129,15 @@ codex mcp add local3d -- "$PWD/.venv/bin/local3d" mcp
 
 Call `generate_asset` with `{"request":{"image":"/absolute/path/to/reference.png"}}`, then poll `get_job` using the job ID. The MCP tools return status and paths. [Claude Code MCP](https://code.claude.com/docs/en/mcp) · [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)
 
-## REST and launchd
+## Local dashboard, REST and launchd
+
+Open **http://127.0.0.1:8765/** while Local3D is serving to see live job phases, elapsed time, recent assets, disk availability, measured process memory and configured HTTP ports. Select **View** to inspect the reference image and rotate the GLB. New model-based BLEND assets also keep a GLB preview.
+
+Install the optional [model-viewer](https://modelviewer.dev/) module once. Local3D hosts it on disk and loads it when you inspect a model.
+
+~~~sh
+uv run local3d setup --viewer
+~~~
 
 ```sh
 uv run local3d serve

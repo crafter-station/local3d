@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Local3D Dashboard</title>
+  <link rel="stylesheet" href="/dashboard-assets/dashboard.css">
+  <script src="/dashboard-assets/dashboard.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="/" aria-label="Local3D dashboard"><span class="brand-icon" aria-hidden="true">◇</span>Local3D</a>
+      <span class="connection" id="connection" role="status">Connecting</span>
+    </div>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="title">
+      <div>
+        <h1 id="title">Generation monitor</h1>
+        <p>Follow assets created by your agents and CLI on this machine.</p>
+      </div>
+      <span class="time" id="updated"></span>
+    </section>
+    <section class="metrics" aria-label="Local usage">
+      <div class="card metric"><span>Queued</span><strong id="queued">—</strong></div>
+      <div class="card metric"><span>Assets created</span><strong id="completed">—</strong></div>
+      <div class="card metric"><span>Latest measured peak</span><strong id="peak">—</strong><small id="peak-label">Process footprint</small></div>
+      <div class="card metric"><span>Disk available</span><strong id="disk">—</strong></div>
+    </section>
+    <div class="overview">
+      <section class="card activity" aria-labelledby="activity-title">
+        <div class="card-heading">
+          <h2 id="activity-title">Current activity</h2>
+          <span class="badge" id="current-state">Idle</span>
+        </div>
+        <div class="activity-content" id="activity">
+          <p class="empty">Jobs will appear here when they start.</p>
+        </div>
+      </section>
+      <section class="card services" aria-labelledby="ports-title">
+        <div class="card-heading"><h2 id="ports-title">Local ports</h2></div>
+        <ul id="ports" class="ports"><li class="empty">Checking services…</li></ul>
+        <p id="image-backend" class="backend" hidden>FLUX runs locally through MLX.</p>
+      </section>
+    </div>
+    <section class="card history" aria-labelledby="history-title">
+      <div class="card-heading">
+        <h2 id="history-title">Recent jobs</h2>
+        <span class="secondary" id="job-count"></span>
+      </div>
+      <div class="table-scroll">
+        <table aria-label="Recent jobs">
+          <thead><tr><th>Asset</th><th>Provider</th><th>Status</th><th>Output</th></tr></thead>
+          <tbody id="jobs"><tr><td colspan="4" class="empty">Waiting for the first job.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <dialog id="asset-dialog" aria-labelledby="asset-dialog-title">
+    <div class="card-heading">
+      <h2 id="asset-dialog-title">Asset preview</h2>
+      <form method="dialog"><button type="submit" class="view-action">Close</button></form>
+    </div>
+    <div class="previews">
+      <section>
+        <h3>Reference image</h3>
+        <div id="reference-preview" class="preview-frame"></div>
+      </section>
+      <section>
+        <h3>3D model</h3>
+        <div id="model-preview" class="preview-frame"></div>
+      </section>
+    </div>
+  </dialog>
+</body>
+</html>

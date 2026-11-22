@@ -1,12 +1,13 @@
 flowchart TB
     CLI[Typer CLI] --> Engine
+    Web[Local dashboard] --> REST
     REST[FastAPI on loopback] --> Engine
     MCP[FastMCP over stdio] --> Engine
     Engine[Local3D engine and worker] <--> Jobs[(SQLite jobs)]
     Engine --> Input{Input}
     subgraph Lock[Cross-process engine lock]
-        Input -->|Prompt| Image[Draw Things FLUX over loopback]
-        Image --> Release[Release and verify external server]
+        Input -->|Prompt| Image[FLUX reference with MFLUX]
+        Image --> Release[Image process exits]
         Input -->|Reference image| Geometry
         Release --> Geometry[Isolated MLX geometry and textures]
         Geometry -->|Worker exits| Blender[Headless Blender]

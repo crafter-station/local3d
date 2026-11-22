@@ -4,7 +4,9 @@ import subprocess
 
 from .models import Provider
 from .providers.draw_things import DrawThings
+from .providers.draw_things_cli import DrawThingsCLI
 from .providers.geometry import GEOMETRY
+from .providers.mflux import MFlux
 from .settings import Local3DError, Settings
 
 
@@ -27,6 +29,29 @@ def model_inventory(settings: Settings) -> list[dict]:
             for spec in GEOMETRY.values()
         ],
     ]
+    inventory.append(
+        {
+            "id": "mflux",
+            "validation": "validated",
+            "available": MFlux(settings).ready(),
+            "kind": "text-to-image",
+            "backend": "mlx",
+            "model": "FLUX.2 Klein 4B",
+        }
+    )
+    profile = DrawThingsCLI(settings).profile()
+    if profile is not None:
+        return inventory + [
+            {
+                "id": "draw-things",
+                "validation": "experimental",
+                "available": True,
+                "kind": "text-to-image",
+                "backend": "cli",
+                "model": profile.model,
+            }
+        ]
+
     try:
         draw = DrawThings()
         options = draw.options()

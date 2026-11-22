@@ -25,6 +25,30 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
-      - run: sudo apt-get update && sudo apt-get install -y blender
+      - name: Restore official Blender
+        id: blender-cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/blender-5.2.3-linux-x64
+          key: blender-official-5.2.3-linux-x64
+      - name: Install official Blender 5.2.3
+        if: steps.blender-cache.outputs.cache-hit != 'true'
+        working-directory: ${{ runner.temp }}
+        run: |
+          archive=blender-5.2.3-linux-x64.tar.xz
+          curl --fail --location --retry 3 --output "$archive" "https://download.blender.org/release/Blender5.2/$archive"
+          printf '%s  %s\n' 78486c018b4443efe5e75ab54c290ed8c15abafd249b862c2c9ce2530a918eec "$archive" | sha256sum --check
+          tar -xJf "$archive"
       - run: uv sync --locked
-      - run: uv run --locked pytest -m blender
+      - name: Exercise headless Blender
+        env:
+          LOCAL3D_BLENDER: ${{ runner.temp }}/blender-5.2.3-linux-x64/blender
+        run: |
+          "$LOCAL3D_BLENDER" --version
+          uv run --locked pytest -m blender --basetemp "$RUNNER_TEMP/local3d-tests"
+      - name: Print Blender stage logs
+        if: failure()
+        run: |
+          if test -d "$RUNNER_TEMP/local3d-tests"; then
+            find "$RUNNER_TEMP/local3d-tests" -type f -name '*.log' -print -exec tail -60 {} \;
+          fi

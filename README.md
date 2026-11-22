@@ -10,7 +10,7 @@ Local3D turns a reference image into a textured mesh through a local provider an
 
 ## Quick start
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/), Git, and [Blender](https://www.blender.org/download/). Blender can live in `/Applications` or `~/Applications`. Set `LOCAL3D_BLENDER` if you install it elsewhere.
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), Git, and [Blender](https://www.blender.org/download/). Blender can live in `/Applications` or `~/Applications`. Use the official Blender 5.2 distribution. Set `LOCAL3D_BLENDER` if you install it elsewhere.
 
 ```sh
 git clone https://github.com/crafter-station/local3d.git
